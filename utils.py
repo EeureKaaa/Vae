@@ -42,6 +42,7 @@ def ensure_directory_exists(file_path):
 
 # Configuration parameters
 config = {
+    # if you change the dataset, remeber to change the dataset loder in get_data_loaders
     'dataset': 'MNIST',
     'batch_size': 16,
     'epochs': 20,
