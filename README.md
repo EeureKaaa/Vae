@@ -4,13 +4,7 @@ This project implements a Variational Autoencoder (VAE) to generate MNIST handwr
 
 ## Overview
 
-A Variational Autoencoder (VAE) is a type of generative model that learns to encode data into a latent space and then decode it back. The key features of this implementation:
-
-- Convolutional neural network architecture for both encoder and decoder
-- Latent space dimension of 20
-- Training on the MNIST dataset
-- Generation of new digit images from random latent vectors
-- Reconstruction of existing images
+A Variational Autoencoder (VAE) is a type of generative model that learns to encode data into a latent space and then decode it back.
 
 ## Requirements
 
@@ -24,15 +18,24 @@ A Variational Autoencoder (VAE) is a type of generative model that learns to enc
 Simply run the script:
 
 ```bash
-python mnist_vae.py
+python main.py --all
+```
+
+Use `--help` to get information about command-line options.
+```bash
+python main.py --help
 ```
 
 The script will:
 1. Download the MNIST dataset (if not already present)
 2. Train the VAE model for 20 epochs
-3. Save the best model as `mnist_vae_model.pt`
-4. Generate 10 random digit images and save them as `generated_mnist.png`
-5. Reconstruct 10 test images and save the comparison as `reconstructed_mnist.png`
+3. Save the best model in `checkpoints` directory
+4. Inference with 4 modes:
+    - generate_images: Generate 10 random digit images
+    - reconstruct_images: Reconstruct 10 test digits
+    - interpolate: Interpolate between two random points in the latent space
+    - visualize_2d_latent_space: Visualize the 2D latent space
+
 
 ## Model Architecture
 
@@ -51,8 +54,4 @@ The loss function combines:
 - Reconstruction loss (binary cross-entropy)
 - KL divergence to ensure the latent space follows a standard normal distribution
 
-## Results
 
-After training, you can examine:
-- `generated_mnist.png`: New digits generated from random points in the latent space
-- `reconstructed_mnist.png`: Original test images (top row) and their reconstructions (bottom row)

@@ -8,7 +8,6 @@ def main():
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'generate', 'reconstruct', 'interpolate', 'latent-space-2d','all'],
                         help='Mode to run (train, generate, reconstruct, interpolate, latent-space-2d, all)')
     parser.add_argument('--epochs', type=int, default=config['epochs'], help='Number of epochs for training')
-    parser.add_argument('--latent-dim', type=int, default=config['latent_dim'], help='Dimension of latent space')
     parser.add_argument('--learning-rate', type=float, default=config['learning_rate'], help='Learning rate')
     parser.add_argument('--num-images', type=int, default=10, help='Number of images to generate')
     parser.add_argument('--model-path', type=str, default=config['model_save_path'], help='Path to model file')
