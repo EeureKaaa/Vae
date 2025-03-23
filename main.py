@@ -20,11 +20,11 @@ def main():
         model = train_model(
             epochs=args.epochs, 
             learning_rate=args.learning_rate, 
-            latent_dim=args.latent_dim,
+            latent_dim=config['latent_dim'],
             use_wandb=True
         )
     else:
-        model = load_model(model_path=args.model_path, latent_dim=args.latent_dim)
+        model = load_model(model_path=args.model_path, latent_dim=config['latent_dim'])
     
     if args.mode == 'generate' or args.mode == 'all':
         print("Generating images from latent space...")
@@ -39,7 +39,7 @@ def main():
         interpolate_digits(model)
     
     # Only run these if latent_dim is 2
-    if args.latent_dim == 2 and (args.mode == 'latent-space-2d' or args.mode == 'all'):
+    if config['latent_dim'] == 2 and (args.mode == 'latent-space-2d' or args.mode == 'all'):
         print("Visualizing 2D latent space...")
         visualize_2d_latent_space(model)
 

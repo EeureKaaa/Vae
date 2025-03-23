@@ -2,7 +2,32 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-import wandb
+
+# Check if wandb is available
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+
+# Function to check if wandb is available and authenticated
+def is_wandb_ready():
+    """Check if wandb is available and authenticated"""
+    if not WANDB_AVAILABLE:
+        print("Wandb is not available.")
+        print("Install wandb with `pip install wandb` or run without wandb.")
+        return False
+    
+    try:
+        import wandb
+        # Check if user is logged in
+        api = wandb.Api()
+        # If this succeeds, user is authenticated
+        return True
+    except Exception as e:
+        print(f"Wandb is installed but not authenticated: {e}")
+        print("Please run `wandb login` to authenticate, or run without wandb.")
+        return False
 
 # Set random seed for reproducibility
 torch.manual_seed(42)

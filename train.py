@@ -2,8 +2,10 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from model import VAE, loss_function
-from utils import config, device, get_data_loaders
-import wandb
+from utils import config, device, get_data_loaders, is_wandb_ready, WANDB_AVAILABLE
+
+if WANDB_AVAILABLE:
+    import wandb
 
 # Initialize wandb only when needed
 def init_wandb():
@@ -55,8 +57,8 @@ def train_epoch(model, optimizer, train_loader, epoch, use_wandb=True):
     avg_loss = train_loss / len(train_loader.dataset)
     print(f'====> Epoch: {epoch} Average loss: {avg_loss:.4f}')
     
-    # Log epoch metrics to wandb
-    if use_wandb:
+    # Log epoch metrics to wandb if available
+    if use_wandb and WANDB_AVAILABLE:
         wandb.log({
             "epoch": epoch,
             "epoch_loss": avg_loss,
@@ -87,8 +89,8 @@ def test_epoch(model, test_loader, epoch, use_wandb=True):
     test_loss /= len(test_loader.dataset)
     print(f'====> Test set loss: {test_loss:.4f}')
     
-    # Log epoch metrics to wandb
-    if use_wandb:
+    # Log epoch metrics to wandb if available
+    if use_wandb and WANDB_AVAILABLE:
         wandb.log({
             "epoch": epoch,
             "test_loss": test_loss,
@@ -102,10 +104,13 @@ def train_model(epochs=None, learning_rate=None, latent_dim=None, use_wandb=True
     """
     Train the VAE model
     """
-    # Initialize wandb if requested
+    # Initialize wandb if requested and available
     run = None
-    if use_wandb:
+    if use_wandb and is_wandb_ready():
         run = init_wandb()
+    elif use_wandb and not is_wandb_ready():
+        print("Warning: Wandb is not available or not authenticated. Training will continue without wandb logging.")
+        use_wandb = False
     
     # Use config values if parameters not provided
     if epochs is None:
@@ -122,8 +127,8 @@ def train_model(epochs=None, learning_rate=None, latent_dim=None, use_wandb=True
     model = VAE(latent_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
-    # Log model architecture to wandb
-    if use_wandb:
+    # Log model architecture to wandb if available
+    if use_wandb and WANDB_AVAILABLE:
         wandb.watch(model, log="all", log_freq=100)
     
     # Training loop

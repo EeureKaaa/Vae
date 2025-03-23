@@ -6,12 +6,29 @@ This project implements a Variational Autoencoder (VAE) to generate MNIST handwr
 
 A Variational Autoencoder (VAE) is a type of generative model that learns to encode data into a latent space and then decode it back.
 
-## Requirements
+## Installation
 
-- PyTorch
-- torchvision
-- matplotlib
-- numpy
+Clone the repository:
+
+```bash
+git clone https://github.com/EeureKaaa/Vae.git
+``` 
+
+Create a virtual environment and activate it:
+```bash
+conda create --name vae python=3.10
+conda activate vae
+```
+
+Install dependencies:
+```bash
+pip install .
+```
+
+Or install with wandb:
+```bash
+pip install ".[tracking]"
+```
 
 ## Usage
 
