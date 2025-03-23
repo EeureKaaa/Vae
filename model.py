@@ -70,4 +70,4 @@ def loss_function(recon_x, x, mu, log_var):
     # KL divergence
     KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     
-    return BCE + KLD
+    return BCE, KLD, BCE + KLD
