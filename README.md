@@ -18,7 +18,7 @@ A Variational Autoencoder (VAE) is a type of generative model that learns to enc
 Simply run the script:
 
 ```bash
-python main.py --all
+python main.py --mode all
 ```
 
 Use `--help` to get information about command-line options.
