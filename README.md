@@ -12,6 +12,7 @@ Clone the repository:
 
 ```bash
 git clone https://github.com/EeureKaaa/Vae.git
+cd Vae
 ``` 
 
 Create a virtual environment and activate it:
