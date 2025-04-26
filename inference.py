@@ -1,19 +1,23 @@
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 from model import VAE
-from utils import config, device, get_data_loaders
+from utils import config, device, get_data_loaders, ensure_directory_exists,save_image
+from torch_fidelity import calculate_metrics
+import logging
+import time
+import json
 
-def load_model(model_path=None, latent_dim=None) -> VAE:
+def load_model(model_path=None) -> VAE:
     """
     Load a trained VAE model
     """
     if model_path is None:
         model_path = config['model_save_path']
-    if latent_dim is None:
-        latent_dim = config['latent_dim']
+    logging.info(f"Loading model from {model_path}")
     
-    model = VAE(latent_dim).to(device)
+    model = VAE(config['latent_dim']).to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -198,12 +202,101 @@ def visualize_2d_latent_space(model=None, n_points=20, save_path=None) -> None:
     plt.savefig(save_path if save_path else 'latent_space_2d.png', bbox_inches='tight')
     plt.close()
     print(f"2D latent space visualization saved as '{save_path}'")
+def calculate_fid(model=None, args=None, real_images_dir=None, generated_images_dir=None, force_cpu=False) -> float:
+    """
+    Calculate the Fréchet Inception Distance (FID) between generated images and real images.
+    
+    Args:
+        model: The VAE model (will be loaded if None)
+        num_images: Number of images to generate for FID calculation
+        real_images_dir: Directory to save real images (will use config if None)
+        generated_images_dir: Directory to save generated images (will use config if None)
+        
+    Returns:
+        FID score (lower is better)
+    """
+    if model is None:
+        model = load_model()
+    if real_images_dir is None:
+        real_images_dir = config['fid_real_images_dir']
+    if generated_images_dir is None:
+        generated_images_dir = config['fid_generated_images_dir']
+    
+    # Create directories if they don't exist
+    ensure_directory_exists(real_images_dir)
+    ensure_directory_exists(generated_images_dir)
+    
+    # Get test data loader for real images
+    num_images = args.fid_images
+    _, test_loader = get_data_loaders(batch_size=num_images)
+    
+    # Save real images
+    print(f"Saving {num_images} real images to {real_images_dir}...")
+    real_data, _ = next(iter(test_loader))
+    # Limit to num_images
+    real_data = real_data[:num_images]
+    
+    # Save each real image separately
+    for i in range(len(real_data)):
+        save_image(real_data[i], os.path.join(real_images_dir, f"real_{i}.png"))
+    
+    # Generate and save fake images
+    print(f"Generating and saving {num_images} fake images to {generated_images_dir}...")
+    with torch.no_grad():
+        # Sample from latent space
+        z = torch.randn(num_images, config['latent_dim']).to(device)
+        fake_data = model.decode(z).cpu()
+        
+        # Save each generated image separately
+        for i in range(len(fake_data)):
+            save_image(fake_data[i], os.path.join(generated_images_dir, f"fake_{i}.png"))
+    
+    # Calculate FID
+    use_cuda = torch.cuda.is_available() and not force_cpu
+    if use_cuda:
+        print("Calculating FID score using GPU...")
+    else:
+        print("Calculating FID score using CPU...")
+        
+    metrics = calculate_metrics(
+        input1=real_images_dir,
+        input2=generated_images_dir,
+        cuda=use_cuda,
+        fid=True,
+        verbose=True
+    )
+    
+    # The key is 'frechet_inception_distance' not 'fid'
+    fid_score = metrics['frechet_inception_distance']
+    print(f"FID Score: {fid_score:.4f}")
+
+    # store json for fid score
+    if fid_score:
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        fid_score = {
+            'model_path': args.model_path,
+            'num_images': num_images,
+            'fid_score': fid_score,
+            'timestamp': timestamp
+        }
+        with open(config['fid_score_path'] + f'/fid_score_{timestamp}.json', 'w') as f:
+            json.dump(fid_score, f, indent=4)
+    
+    return fid_score
 
 if __name__ == "__main__":
     model = load_model()
     generate_images(model)
     reconstruct_images(model)
     interpolate_digits(model)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model-path', type=str, default=config['model_save_path'], help='Path to model file')
+    parser.add_argument('--fid-images', type=int, default=1000, help='Number of images to use for FID calculation')
+    args = parser.parse_args()
+    
+    # Calculate FID score
+    calculate_fid(model, args)
     
     # Only run these if latent_dim is 2
     if config['latent_dim'] == 2:

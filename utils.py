@@ -2,6 +2,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from matplotlib import pyplot as plt
 
 # Check if wandb is available
 try:
@@ -54,12 +55,15 @@ config_update = {
     'generated_images_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/generated.png',
     'reconstructed_images_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/reconstructed.png',
     'interpolation_images_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/interpolation.png',
-    'latent_space_2d_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/latent_space_2d.png'
+    'latent_space_2d_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/latent_space_2d.png',
+    'fid_real_images_dir': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/fid/real',
+    'fid_generated_images_dir': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/fid/generated',
+    'fid_score_path': f'./outputs/{config["dataset"]}_dim{config["latent_dim"]}/fid'
 }
 config.update(config_update)
 
 # Create necessary directories
-for path_key in ['model_save_path', 'generated_images_path', 'reconstructed_images_path', 'interpolation_images_path', 'latent_space_2d_path']:
+for path_key in ['model_save_path', 'generated_images_path', 'reconstructed_images_path', 'interpolation_images_path', 'latent_space_2d_path', 'fid_real_images_dir', 'fid_generated_images_dir']:
     ensure_directory_exists(config[path_key])
 
 # Device configuration
@@ -85,3 +89,18 @@ def get_data_loaders(batch_size=None):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, test_loader
+
+def save_image(image, path):
+    """
+    Save a single image to a file
+    """
+    # Create directory if it doesn't exist
+    ensure_directory_exists(path)
+    
+    # Convert tensor to numpy and display
+    image = image.cpu().squeeze().numpy()
+    plt.figure(figsize=(1, 1))
+    plt.imshow(image, cmap='gray')
+    plt.axis('off')
+    plt.savefig(path, bbox_inches='tight', pad_inches=0)
+    plt.close()
