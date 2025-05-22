@@ -23,12 +23,7 @@ conda activate vae
 
 Install dependencies:
 ```bash
-pip install .
-```
-
-Or install with wandb:
-```bash
-pip install ".[tracking]"
+pip install -e .
 ```
 
 ## Usage
