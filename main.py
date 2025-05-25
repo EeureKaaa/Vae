@@ -9,7 +9,7 @@ def main():
                         help='Mode to run (train, generate, reconstruct, interpolate, latent-space-2d, fid, all)')
     parser.add_argument('--epochs', type=int, default=config['epochs'], help='Number of epochs for training')
     parser.add_argument('--learning-rate', type=float, default=config['learning_rate'], help='Learning rate')
-    parser.add_argument('--num-images', type=int, default=10, help='Number of images to generate')
+    parser.add_argument('--num-images', type=int, default=16, help='Number of images to generate')
     parser.add_argument('--fid-images', type=int, default=500, help='Number of images to use for FID calculation')
     # parser.add_argument('--model-path', type=str, default=config['model_save_path'], help='Path to model file')
     # parser.add_argument('--latent-dim', type=int, default=config['latent_dim'], help='Dimension of latent space')

@@ -45,10 +45,10 @@ def ensure_directory_exists(file_path):
 config = {
     # if you change the dataset, remeber to change the dataset loder in get_data_loaders
     'dataset': 'MNIST',
-    'batch_size': 16,
-    'epochs': 20,
+    'batch_size': 128,
+    'epochs': 50,
     'learning_rate': 1e-3,
-    'latent_dim': 20,  # Size of latent space
+    'latent_dim': 2,  # Size of latent space
 }
 config_update = {
     'model_save_path': f'./checkpoints/{config["dataset"]}_vae_model_{config["latent_dim"]}_dim.pt',

@@ -22,7 +22,7 @@ def load_model(model_path=None) -> VAE:
     model.eval()
     return model
 
-def generate_images(model=None, num_images=10, save_path=None) -> None:
+def generate_images(model=None, num_images=16, save_path=None) -> None:
     """
     Generate images by sampling from the latent space
     """
@@ -37,7 +37,8 @@ def generate_images(model=None, num_images=10, save_path=None) -> None:
         sample = model.decode(z).cpu()
         
         # Display images
-        fig, axes = plt.subplots(1, num_images, figsize=(12, 2))
+        fig, axes = plt.subplots(4, 4, figsize=(10, 10))
+        axes = axes.flatten()  # Flatten the 2D array of axes to 1D for easy iteration
         for i, ax in enumerate(axes):
             ax.imshow(sample[i].squeeze().numpy(), cmap='gray')
             ax.axis('off')
@@ -202,15 +203,149 @@ def visualize_2d_latent_space(model=None, n_points=20, save_path=None) -> None:
     plt.savefig(save_path if save_path else 'latent_space_2d.png', bbox_inches='tight')
     plt.close()
     print(f"2D latent space visualization saved as '{save_path}'")
+def load_images_from_directory(directory, max_images=None):
+    """
+    Load images from a directory into a tensor
+    
+    Args:
+        directory: Directory containing images
+        max_images: Maximum number of images to load (None for all)
+        
+    Returns:
+        Tensor of images with shape [N, 1, H, W]
+    """
+    import glob
+    from PIL import Image
+    import torchvision.transforms as transforms
+    
+    # Find all image files in the directory
+    image_files = sorted(glob.glob(os.path.join(directory, "*.png")))
+    if max_images is not None:
+        image_files = image_files[:max_images]
+    
+    if not image_files:
+        raise ValueError(f"No images found in {directory}")
+    
+    # Define transform to convert images to tensors
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    
+    # Load images
+    images = []
+    for img_path in image_files:
+        img = Image.open(img_path).convert('L')  # Convert to grayscale
+        img_tensor = transform(img)
+        images.append(img_tensor.unsqueeze(0))  # Add batch dimension
+    
+    # Stack all images into a single tensor
+    return torch.cat(images, dim=0)
+
+# This function is now integrated into save_processed_images
+
+def save_processed_images(images, output_dir, prefix="img"):
+    """
+    Preprocess and save images for FID calculation
+    - Convert from 1 channel to 3 channels
+    - Resize to 299x299 (Inception v3 input size)
+    - Normalize to [0, 1]
+    - Save as RGB images
+    
+    Args:
+        images: Tensor of shape [N, 1, H, W]
+        output_dir: Directory to save processed images
+        prefix: Prefix for saved image filenames
+        
+    Returns:
+        Directory path where images are saved
+    """
+    import torch.nn.functional as F
+    from torchvision.utils import save_image as tv_save_image
+    import os
+    
+    # Create directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Directory created/verified: {output_dir}")
+    
+    # Preprocess images
+    print(f"Preprocessing and saving {len(images)} images to {output_dir}...")
+    
+    # Convert to 3 channels and resize
+    images = images.repeat(1, 3, 1, 1)  # [N, 1, H, W] -> [N, 3, H, W]
+    images = F.interpolate(images, size=(299, 299), mode='bilinear')  # Resize to 299x299
+    
+    # Normalize to [0, 1]
+    images = (images - images.min()) / (images.max() - images.min())
+    
+    # Save each image
+    for i, img in enumerate(images):
+        # Use torchvision's save_image which properly handles 3-channel images
+        img_path = os.path.join(output_dir, f"{prefix}_{i:05d}.png")
+        tv_save_image(img, img_path)
+        if i == 0:
+            print(f"First image saved to: {img_path}")
+    
+    return output_dir
+
+def save_real_images(num_images, output_dir):
+    """
+    Save real images from the test set
+    
+    Args:
+        num_images: Number of images to save
+        output_dir: Directory to save images
+        
+    Returns:
+        Tensor of real images
+    """
+    # Get test data loader
+    _, test_loader = get_data_loaders(batch_size=num_images)
+    
+    # Get real images
+    print(f"Getting {num_images} real images...")
+    real_data, _ = next(iter(test_loader))
+    # Limit to num_images
+    real_data = real_data[:num_images]
+    
+    # Process and save images
+    save_processed_images(real_data, output_dir, prefix="real")
+    
+    return real_data
+
+def generate_and_save_images(model, num_images, output_dir):
+    """
+    Generate images using the model and save them
+    
+    Args:
+        model: VAE model
+        num_images: Number of images to generate
+        output_dir: Directory to save images
+        
+    Returns:
+        Tensor of generated images
+    """
+    # Generate images
+    print(f"Generating {num_images} images...")
+    with torch.no_grad():
+        # Sample from latent space
+        z = torch.randn(num_images, config['latent_dim']).to(device)
+        generated_data = model.decode(z).cpu()
+    
+    # Process and save images
+    save_processed_images(generated_data, output_dir, prefix="generated")
+    
+    return generated_data
+
 def calculate_fid(model=None, args=None, real_images_dir=None, generated_images_dir=None, force_cpu=False) -> float:
     """
     Calculate the Fréchet Inception Distance (FID) between generated images and real images.
     
     Args:
         model: The VAE model (will be loaded if None)
-        num_images: Number of images to generate for FID calculation
+        args: Arguments containing model_path and fid_images
         real_images_dir: Directory to save real images (will use config if None)
         generated_images_dir: Directory to save generated images (will use config if None)
+        force_cpu: Force CPU usage even if GPU is available
         
     Returns:
         FID score (lower is better)
@@ -222,42 +357,20 @@ def calculate_fid(model=None, args=None, real_images_dir=None, generated_images_
     if generated_images_dir is None:
         generated_images_dir = config['fid_generated_images_dir']
     
-    # Create directories if they don't exist
-    ensure_directory_exists(real_images_dir)
-    ensure_directory_exists(generated_images_dir)
-    
-    # Get test data loader for real images
+    # Get number of images for FID calculation
     num_images = args.fid_images
-    _, test_loader = get_data_loaders(batch_size=num_images)
     
-    # Save real images
-    print(f"Saving {num_images} real images to {real_images_dir}...")
-    real_data, _ = next(iter(test_loader))
-    # Limit to num_images
-    real_data = real_data[:num_images]
+    real_data = save_real_images(num_images, real_images_dir)
+    generated_data = generate_and_save_images(model, num_images, generated_images_dir)
+
+    # real_data = load_images_from_directory(real_images_dir, max_images=num_images)    
+    # generated_data = load_images_from_directory(generated_images_dir, max_images=num_images)
     
-    # Save each real image separately
-    for i in range(len(real_data)):
-        save_image(real_data[i], os.path.join(real_images_dir, f"real_{i}.png"))
-    
-    # Generate and save fake images
-    print(f"Generating and saving {num_images} fake images to {generated_images_dir}...")
-    with torch.no_grad():
-        # Sample from latent space
-        z = torch.randn(num_images, config['latent_dim']).to(device)
-        fake_data = model.decode(z).cpu()
-        
-        # Save each generated image separately
-        for i in range(len(fake_data)):
-            save_image(fake_data[i], os.path.join(generated_images_dir, f"fake_{i}.png"))
-    
-    # Calculate FID
+    # Calculate FID using torch_fidelity's built-in function
+    print("Calculating FID score...")
     use_cuda = torch.cuda.is_available() and not force_cpu
-    if use_cuda:
-        print("Calculating FID score using GPU...")
-    else:
-        print("Calculating FID score using CPU...")
-        
+    
+    # Use torch_fidelity to calculate FID
     metrics = calculate_metrics(
         input1=real_images_dir,
         input2=generated_images_dir,
@@ -270,17 +383,16 @@ def calculate_fid(model=None, args=None, real_images_dir=None, generated_images_
     fid_score = metrics['frechet_inception_distance']
     print(f"FID Score: {fid_score:.4f}")
 
-    # store json for fid score
+    # Store JSON for FID score
     if fid_score:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        fid_score = {
-            'model_path': args.model_path,
+        fid_score_data = {
             'num_images': num_images,
             'fid_score': fid_score,
             'timestamp': timestamp
         }
         with open(config['fid_score_path'] + f'/fid_score_{timestamp}.json', 'w') as f:
-            json.dump(fid_score, f, indent=4)
+            json.dump(fid_score_data, f, indent=4)
     
     return fid_score
 
